@@ -201,9 +201,17 @@
 
         .right {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-end;
             gap: 10px;
             flex: 0 0 auto;
+            position: relative;
+        }
+
+        .action-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .btn {
@@ -236,6 +244,13 @@
             justify-content: center;
         }
 
+        .qr-btn {
+            min-width: 42px;
+            justify-content: center;
+            padding: 8px 10px;
+            font-weight: 700;
+        }
+
         footer {
             margin-top: 20px;
             padding-top: 16px;
@@ -258,9 +273,73 @@
             border-bottom-color: rgba(234, 240, 255, .55)
         }
 
+        .qr-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            place-items: center;
+            padding: 22px;
+            background: rgba(4, 8, 18, .86);
+            backdrop-filter: blur(10px);
+            z-index: 20;
+        }
+
+        .qr-modal.is-open {
+            display: grid;
+        }
+
+        .qr-box {
+            width: min(88vw, 520px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(11, 18, 32, .96);
+            box-shadow: var(--shadow);
+        }
+
+        .qr-box img {
+            display: block;
+            width: min(76vw, 420px);
+            height: min(76vw, 420px);
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .qr-modal-url {
+            width: 100%;
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .qr-close {
+            align-self: flex-end;
+        }
+
         @media (min-width: 720px) {
             .card {
                 grid-column: span 6;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .card-inner {
+                flex-direction: column;
+            }
+
+            .right {
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .action-row {
+                justify-content: flex-end;
             }
         }
     </style>
@@ -496,6 +575,14 @@
         </footer>
     </main>
 
+    <div class="qr-modal" id="qr-modal" role="dialog" aria-modal="true" aria-label="QR del enlace">
+        <div class="qr-box">
+            <button class="btn mini qr-close" type="button" id="qr-close" aria-label="Cerrar QR">&times;</button>
+            <img id="qr-modal-img" width="420" height="420" alt="" />
+            <p class="qr-modal-url" id="qr-modal-url"></p>
+        </div>
+    </div>
+
     <script>
         // año dinámico
         document.getElementById("y").textContent = new Date().getFullYear();
@@ -513,6 +600,66 @@
                     // fallback
                     prompt("Copia el enlace:", url);
                 }
+            });
+        });
+
+        const qrModal = document.getElementById("qr-modal");
+        const qrModalImg = document.getElementById("qr-modal-img");
+        const qrModalUrl = document.getElementById("qr-modal-url");
+        const qrClose = document.getElementById("qr-close");
+        let lastQrButton = null;
+
+        function openQr(url, button) {
+            lastQrButton = button;
+            qrModalImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(url)}`;
+            qrModalImg.alt = `QR para ${url}`;
+            qrModalUrl.textContent = url;
+            qrModal.classList.add("is-open");
+            button.setAttribute("aria-expanded", "true");
+            qrClose.focus();
+        }
+
+        function closeQr() {
+            qrModal.classList.remove("is-open");
+            if (lastQrButton) {
+                lastQrButton.setAttribute("aria-expanded", "false");
+                lastQrButton.focus();
+            }
+        }
+
+        qrClose.addEventListener("click", closeQr);
+        qrModal.addEventListener("click", event => {
+            if (event.target === qrModal) closeQr();
+        });
+        document.addEventListener("keydown", event => {
+            if (event.key === "Escape" && qrModal.classList.contains("is-open")) closeQr();
+        });
+
+        // QR por enlace
+        document.querySelectorAll(".right").forEach(actions => {
+            const link = actions.querySelector("a[href]");
+            const copy = actions.querySelector("[data-copy]");
+            const url = copy?.getAttribute("data-copy") || link?.href;
+
+            if (!url) return;
+
+            const row = document.createElement("div");
+            row.className = "action-row";
+            while (actions.firstChild) {
+                row.appendChild(actions.firstChild);
+            }
+
+            const qrButton = document.createElement("button");
+            qrButton.className = "btn qr-btn";
+            qrButton.type = "button";
+            qrButton.textContent = "QR";
+            qrButton.setAttribute("aria-expanded", "false");
+            qrButton.setAttribute("title", "Mostrar QR");
+
+            actions.append(qrButton, row);
+
+            qrButton.addEventListener("click", () => {
+                openQr(url, qrButton);
             });
         });
     </script>
